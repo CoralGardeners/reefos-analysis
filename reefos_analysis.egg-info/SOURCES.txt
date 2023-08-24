@@ -1,0 +1,10 @@
+README.md
+setup.py
+reefos_analysis/detect_and_analyze.py
+reefos_analysis/detection_io.py
+reefos_analysis.egg-info/PKG-INFO
+reefos_analysis.egg-info/SOURCES.txt
+reefos_analysis.egg-info/dependency_links.txt
+reefos_analysis.egg-info/requires.txt
+reefos_analysis.egg-info/top_level.txt
+reefos_analysis.egg-info/zip-safe

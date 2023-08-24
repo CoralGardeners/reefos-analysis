@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: reefos-analysis
+Version: 0.0.1
+Summary: Shared analysis tools
+Home-page: https://github.com/CoralGardeners/reefos-analysis.git
+Author: Rich Williams
+Author-email: rich@coralgardeners.org
+Requires-Python: >=3.9
