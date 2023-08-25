@@ -10,10 +10,7 @@ def get_species_counts(detections):
     return cnt_df
 
 
-def get_fish_health(detections, min_count=100):
-    # get class counts from raw detections
-    count_df = get_species_counts(detections)
-
+def get_fish_health_from_counts(count_df, min_count=100):
     labels = ['brown_tang', 'butterflyfish', 'fish',
               'parrotfish', 'surgeonfish']
 
@@ -39,6 +36,12 @@ def get_fish_health(detections, min_count=100):
     health = 100 * np.clip(health, 0, 1)
 
     return health, (class_counts / class_counts.sum()).to_dict()
+
+
+def get_fish_health(detections, min_count=100):
+    # get class counts from raw detections
+    count_df = get_species_counts(detections)
+    return get_fish_health_from_counts(count_df, min_count=min_count)
 
 
 def get_coral_health():
