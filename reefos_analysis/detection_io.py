@@ -1,5 +1,6 @@
 from collections import defaultdict
 import datetime as dt
+import pytz
 from dataclasses import dataclass
 from influxdb_client import Point
 
@@ -71,7 +72,11 @@ def det_to_points(detections, labels, model_name, model_version, image_name):
 
 
 def get_filename_time(fn):
-    return dt.datetime.strptime(fn.split('.')[0], "%m_%d_%Y_%H_%M_%S")
+    dt_notz = dt.datetime.strptime(fn.split('.')[0], "%m_%d_%Y_%H_%M_%S")
+    tahiti_tz = pytz.timezone('Pacific/Tahiti')
+    dt_tahiti = tahiti_tz.localize(dt_notz)
+    return dt_tahiti
+
 
 
 def mock_influx_query_results(detections):
