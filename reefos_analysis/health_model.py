@@ -11,6 +11,9 @@ def get_species_counts(detections):
 
 
 def get_fish_health_from_counts(count_df, min_count=100):
+    def divide_and_fill_na(vals1, vals2):
+        return np.divide(vals1, vals2, out=np.zeros_like(vals1), where=(vals2 != 0))
+
     labels = ['brown_tang', 'butterflyfish', 'fish',
               'parrotfish', 'surgeonfish']
 
@@ -21,10 +24,11 @@ def get_fish_health_from_counts(count_df, min_count=100):
         return None, None
 
     # compute abundance ratios
-    sf_bt = class_counts['surgeonfish'] / (class_counts['brown_tang'])
-    sf_pf = class_counts['surgeonfish'] / (class_counts['parrotfish'])
-    bf_bt = class_counts['butterflyfish'] / class_counts['brown_tang']
-    bf_pf = class_counts['butterflyfish'] / class_counts['parrotfish']
+    sf_bt = divide_and_fill_na(class_counts['surgeonfish'], class_counts['brown_tang'])
+    sf_pf = divide_and_fill_na(class_counts['surgeonfish'], class_counts['parrotfish'])
+    bf_bt = divide_and_fill_na(class_counts['butterflyfish'], class_counts['brown_tang'])
+    bf_pf = divide_and_fill_na(class_counts['butterflyfish'], class_counts['parrotfish'])
+
     # compute cover estimate from fish abundance ratios
     estimated_log_coral = (0.34 * sf_bt - 0.11 * sf_pf
                            - 0.082 * bf_bt + 0.26 * bf_pf - 0.77)
