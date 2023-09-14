@@ -10,28 +10,42 @@ def get_species_counts(detections):
     return cnt_df
 
 
-def get_fish_health_from_counts(count_df, min_count=100):
+def get_fish_health_from_counts(count_df, min_count=100, use_correction=False):
+    count_corrections = {'surgeonfish': 0.3,
+                         'butterflyfish': 3,
+                         'brown_tang': 3,
+                         'parrotfish': 3
+                         }
+
     def divide_and_fill_na(vals1, vals2):
-        return np.divide(vals1, vals2, out=np.zeros_like(vals1), where=(vals2 != 0))
+        return np.log10(np.divide(vals1, vals2,
+                                  out=np.zeros_like(vals1),
+                                  where=(vals2 != 0)))
 
     labels = ['brown_tang', 'butterflyfish', 'fish',
               'parrotfish', 'surgeonfish']
 
     class_counts = count_df[labels].sum()
     total_fish_counted = sum(class_counts[label] for label in labels)
+    if use_correction:
+        for attr, frac in count_corrections.items():
+            class_counts[attr] *= frac
 
     if total_fish_counted <= min_count:
         return None, None
 
-    # compute abundance ratios
+    # compute log abundance ratios
     sf_bt = divide_and_fill_na(class_counts['surgeonfish'], class_counts['brown_tang'])
-    sf_pf = divide_and_fill_na(class_counts['surgeonfish'], class_counts['parrotfish'])
+    # sf_pf = divide_and_fill_na(class_counts['surgeonfish'], class_counts['parrotfish'])
     bf_bt = divide_and_fill_na(class_counts['butterflyfish'], class_counts['brown_tang'])
     bf_pf = divide_and_fill_na(class_counts['butterflyfish'], class_counts['parrotfish'])
 
-    # compute cover estimate from fish abundance ratios
-    estimated_log_coral = (0.34 * sf_bt - 0.11 * sf_pf
-                           - 0.082 * bf_bt + 0.26 * bf_pf - 0.77)
+    # compute cover estimate from fish abundance ratios. MCR Linear regression results:
+    # ['Log_Cropper_CC_Ratio', 'Log_Corallivore_CC_Ratio', 'Log_Corallivore_ScrapeExcav_Ratio']
+    # Linear model R^2 0.5868659580053202
+    # [    0.30485    0.091695      0.3027]
+    # -0.8072201982465221
+    estimated_log_coral = (0.30 * sf_bt + 0.092 * bf_bt + 0.30 * bf_pf - 0.81)
     # health is linear position in range (0.02, 0.5)
     min_log = np.log10(0.02)
     max_log = np.log10(0.50)
