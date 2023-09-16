@@ -13,7 +13,7 @@ setup(
     author_email=__author_email__,
     version=__version__,
     description="Shared analysis tools",
-    python_requires=">=3.9",
+    python_requires=">=3.8",
     packages=["reefos_analysis"],
     include_package_data=True,
     zip_safe=True,
