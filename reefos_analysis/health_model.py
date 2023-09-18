@@ -8,7 +8,7 @@ def get_species_counts(detections):
         print("ERROR: no detections")
         return None
     df = pd.DataFrame(results).drop(columns=['result', 'table'])
-    _df = df[df._field == 'bbox_top_left_x'].groupby('file')['class'].value_counts()
+    _df = df[df._field == 'bbox_top_left_x'].groupby('_time')['class'].value_counts()
     cnt_df = _df.unstack().fillna(0).reset_index()
     return cnt_df
 
