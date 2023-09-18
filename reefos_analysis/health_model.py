@@ -52,6 +52,8 @@ def get_fish_health_from_counts(count_df, min_count=100):
 
 
 def get_fish_health(detections, min_count=100):
+    if len(detections) == 0:
+        return 0
     # get class counts from raw detections
     count_df = get_species_counts(detections)
     return get_fish_health_from_counts(count_df, min_count=min_count)
