@@ -4,19 +4,16 @@ import pandas as pd
 
 def get_species_counts(detections):
     results = [rec.values for table in detections for rec in table.records]
+    if len(results) == 0:
+        print("ERROR: no detections")
+        return None
     df = pd.DataFrame(results).drop(columns=['result', 'table'])
     _df = df[df._field == 'bbox_top_left_x'].groupby('file')['class'].value_counts()
     cnt_df = _df.unstack().fillna(0).reset_index()
     return cnt_df
 
 
-def get_fish_health_from_counts(count_df, min_count=100, use_correction=False):
-    count_corrections = {'surgeonfish': 0.3,
-                         'butterflyfish': 3,
-                         'brown_tang': 3,
-                         'parrotfish': 3
-                         }
-
+def get_fish_health_from_counts(count_df, min_count=100):
     def divide_and_fill_na(vals1, vals2):
         return np.log10(np.divide(vals1, vals2,
                                   out=np.zeros_like(vals1),
@@ -25,12 +22,10 @@ def get_fish_health_from_counts(count_df, min_count=100, use_correction=False):
     labels = ['brown_tang', 'butterflyfish', 'fish',
               'parrotfish', 'surgeonfish']
 
+    if count_df is None:
+        return None, None
     class_counts = count_df[labels].sum()
     total_fish_counted = sum(class_counts[label] for label in labels)
-    if use_correction:
-        for attr, frac in count_corrections.items():
-            class_counts[attr] *= frac
-
     if total_fish_counted <= min_count:
         return None, None
 
