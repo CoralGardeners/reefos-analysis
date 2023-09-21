@@ -16,8 +16,8 @@ class Detect:
             box = [box.item() for box in obj[0]]
             # length, depth = get_dimensions(box, depth_map, image_width=img.width)
             det.append({
-                'class': f'{self.model.names[obj[3]]}',
-                'conf': f'{obj[2]:.2f}',
+                'class': f'{self.model.names[obj[2]]}',
+                'conf': f'{obj[1]:.2f}',
                 #'length': length,
                 #'depth': depth,
                 'xyxy': box,
