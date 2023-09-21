@@ -1,5 +1,5 @@
 from ultralytics import YOLO
-from reefos_analysis import detections as dt
+from reefos_analysis import detection_io as dio
 
 
 # %%
@@ -32,7 +32,7 @@ class Detect:
 
         results = self.model.predict(source=images_path, exist_ok=True, name='predict')
 
-        detections = {res.path.split('/')[-1]: dt.Detections.from_ultralytics(res) for res in results}
+        detections = {res.path.split('/')[-1]: dio.Detections.from_ultralytics(res) for res in results}
         det = []
         for fn, dets in detections.items():
             det.extend(self.unpack_detections(dets, fn))
@@ -41,7 +41,7 @@ class Detect:
     def detect_image(self, img, img_name, model_name, model_version):
         results = self.model.predict(source=img, exist_ok=True, name='predict')
 
-        detections = dt.Detections.from_ultralytics(results[0])
+        detections = dio.Detections.from_ultralytics(results[0])
         det = self.unpack_detections(detections, img_name, model_name, model_version)
         return det
 
