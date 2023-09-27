@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Iterator, Optional, Tuple
 
-
 import influxdb_client
 from influxdb_client import Point, Bucket, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -25,7 +24,7 @@ class Record:
 
 # %%
 
-def det_to_points(detections, image_name, model_name, model_version):
+def det_to_points(detections, classes, image_name, model_name, model_version):
     def _get_mean(dets, attr):
         # compute mean of some attribute in a list of detections
         if len(dets) == 0:
@@ -56,8 +55,9 @@ def det_to_points(detections, image_name, model_name, model_version):
     detections_by_class = defaultdict(list)
     for d in iter(detections):
         detections_by_class[d['class']].append(d)
-    # add a point for each class that was detected in the image
-    for class_name, dets in detections_by_class.items():
+    # add a point for each class, including zero values if none were found in the image
+    for class_name in classes.values():
+        dets = detections_by_class[class_name]
         point = (Point("class_detection")
                  .tag("model", model_name)
                  .tag("version", model_version)
@@ -131,10 +131,10 @@ def setup_influx(influxdb_url, influxdb_token, influxdb_org):
     return influx_write_api
 
 
-def update_influx(det, image_name, bucket_name, model_name, model_version, env):
+def update_influx(det, classes, image_name, bucket_name, model_name, model_version, env):
     write_api = setup_influx(env.influxdb_url, env.influxdb_token, env.influxdb_org)
 
-    points = det_to_points(det, image_name, model_name, model_version)
+    points = det_to_points(det, classes, image_name, model_name, model_version)
     write_api.write(bucket=bucket_name, record=points, write_precision=WritePrecision.S)
 
 # %%

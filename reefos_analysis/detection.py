@@ -44,6 +44,9 @@ class Detect:
         detections = dio.Detections.from_ultralytics(results[0])
         det = self.unpack_detections(detections, img_name, model_name, model_version)
         return det
+    
+    def get_classes(self):
+        return self.model.names
 
 
 if __name__ == '__main__':
