@@ -4,7 +4,7 @@ from reefos_analysis import detection_io as dio
 
 # %%
 class Detect:
-    def __init__(self, device='mps', model_wts="data/model/v1.pt"):
+    def __init__(self, device='mps', model_wts="data/model/v4.pt"):
         # load model
         self.model = YOLO(model_wts)
         self.model.fuse()
@@ -28,14 +28,14 @@ class Detect:
             })
         return det
 
-    def detect_images(self, images_path="data/images"):
+    def detect_images(self, images_path="data/images", save=False, model_name=None, model_version=None):
 
-        results = self.model.predict(source=images_path, exist_ok=True, name='predict')
+        results = self.model.predict(source=images_path, exist_ok=True, name='predict', save=save)
 
         detections = {res.path.split('/')[-1]: dio.Detections.from_ultralytics(res) for res in results}
         det = []
         for fn, dets in detections.items():
-            det.extend(self.unpack_detections(dets, fn))
+            det.extend(self.unpack_detections(dets, fn, model_name, model_version))
         return det
 
     def detect_image(self, img, img_name, model_name, model_version):
