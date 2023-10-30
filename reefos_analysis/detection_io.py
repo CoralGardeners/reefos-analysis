@@ -93,7 +93,6 @@ def get_filename_time(fn):
     return dt_tahiti
 
 
-
 def mock_influx_query_results(detections):
     results = []
     for idx, det in enumerate(detections):
