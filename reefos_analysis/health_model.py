@@ -71,7 +71,7 @@ def get_coral_health(cover, health, bleaching):
     # CS = clip((C - Cmin)/(Cmax - Cmin), 0, 1) where for starters Cmax = log0.5 and Cmin = log0.02 and C is log cover.
     # Then CoralHealth = CS * HB
     health_bleaching = min(health, 1 - bleaching)
-    cover_score = _health_from_cover(np.log10(cover)) / 100
+    cover_score = 0 if cover <= 0 else _health_from_cover(np.log10(cover)) / 100
     cover_score = np.clip(cover_score, 0, 1)
     return 100 * health_bleaching * cover_score
 
