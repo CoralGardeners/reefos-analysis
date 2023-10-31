@@ -13,6 +13,15 @@ def get_species_counts(detections):
     return cnt_df
 
 
+def _health_from_cover(log_cover):
+    min_log = np.log10(0.02)
+    max_log = np.log10(0.50)
+    health = (log_cover - min_log) / (max_log - min_log)
+    # clip and scale to (0, 100)
+    health = 100 * np.clip(health, 0, 1)
+    return health
+    
+
 def get_fish_health_from_counts(count_df, min_count=100):
     def divide_and_fill_na(vals1, vals2):
         return np.log10(np.divide(vals1, vals2,
@@ -42,12 +51,7 @@ def get_fish_health_from_counts(count_df, min_count=100):
     # -0.8072201982465221
     estimated_log_coral = (0.30 * sf_bt + 0.092 * bf_bt + 0.30 * bf_pf - 0.81)
     # health is linear position in range (0.02, 0.5)
-    min_log = np.log10(0.02)
-    max_log = np.log10(0.50)
-    health = (estimated_log_coral - min_log) / (max_log - min_log)
-    # clip and scale to (0, 100)
-    health = 100 * np.clip(health, 0, 1)
-
+    health = _health_from_cover(estimated_log_coral)
     return health, (class_counts / class_counts.sum()).to_dict()
 
 
@@ -59,8 +63,17 @@ def get_fish_health(detections, min_count=100):
     return get_fish_health_from_counts(count_df, min_count=min_count)
 
 
-def get_coral_health():
-    return 20
+def get_coral_health(cover, health, bleaching):
+    # cover, health, bleaching are all on a scale of 0-1
+    # bleaching = 0 means no bleaching, therefore healthy
+    # Combine health and bleaching single score by taking their minimum value: HB = min(H, B)
+    # cover score: put log cover on a linear scale and clipping the value to the range (0, 1) so
+    # CS = clip((C - Cmin)/(Cmax - Cmin), 0, 1) where for starters Cmax = log0.5 and Cmin = log0.02 and C is log cover.
+    # Then CoralHealth = CS * HB
+    health_bleaching = min(health, 1 - bleaching)
+    cover_score = _health_from_cover(cover) / 100
+    cover_score = np.clip(cover_score, 0, 1)
+    return 100 * health_bleaching * cover_score
 
 
 def get_combined_health(components):
