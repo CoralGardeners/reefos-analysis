@@ -6,7 +6,7 @@ from scipy.stats import entropy
 
 # acoustic index parameters
 ai_parameters = {
-    'ADI': {'threshold': 1000},
+    'ADI': {'threshold': 100},
     'BI': {'lofreq': 100, 'hifreq': 5000, 'threshold': 10},
     'NDSI': {'lofreq': 100, 'midfreq': 1000, 'hifreq': 5000},
 }
@@ -34,7 +34,7 @@ def calculate_acoustic_indices(audio_data, sample_rate):
         bin_data = Sxx[i*bin_size:(i+1)*bin_size, :]
         proportion = np.sum(bin_data > params['threshold']) / bin_data.size
         adi_values.append(proportion)
-    ADI = entropy(adi_values)
+    ADI = entropy(adi_values) if sum(adi_values) > 0 else 0
     indices['ADI'] = round(ADI, 2)
 
     # Acoustic Complexity Index (ACI)
@@ -80,4 +80,4 @@ if __name__ == '__main__':
     datapath = "Audio/Data/reefos-02_audio_10_17_2023_10_37_31.wav"
     af = sp.io.wavfile.read(datapath)
     aa = np.array(af[1], dtype=float)
-    calculate_acoustic_indices(aa, af[0])
+    indices = calculate_acoustic_indices(aa, af[0])
