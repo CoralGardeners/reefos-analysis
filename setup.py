@@ -1,6 +1,6 @@
 from setuptools import setup
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __author__ = "Rich Williams"
 __author_email__ = (
     "rich@coralgardeners.org"
@@ -20,6 +20,10 @@ setup(
     url=__url__,
     install_requires=[
         "numpy",
-        "pandas"
+        "pandas",
+        "scipy",
+        "soundfile",
+        "influxdb_client",
+        "ultralytics"
     ],
 )

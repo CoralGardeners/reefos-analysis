@@ -1,15 +1,18 @@
 import numpy as np
-import scipy as sp
 from scipy.signal import spectrogram, find_peaks
 from scipy.stats import entropy
 
+import io
+import soundfile as sf
 
+# %%
 # acoustic index parameters
 ai_parameters = {
-    'ADI': {'threshold': 100},
-    'BI': {'lofreq': 100, 'hifreq': 5000, 'threshold': 10},
+    'ADI': {'threshold': 1e-5},
+    'BI': {'lofreq': 100, 'hifreq': 5000, 'threshold': 1e-7},
     'NDSI': {'lofreq': 100, 'midfreq': 1000, 'hifreq': 5000},
 }
+
 
 def calculate_acoustic_indices(audio_data, sample_rate):
     # Generate the spectrogram
@@ -76,8 +79,12 @@ def calculate_acoustic_indices(audio_data, sample_rate):
     return indices
 
 
+# %%
 if __name__ == '__main__':
-    datapath = "Audio/Data/reefos-02_audio_10_17_2023_10_37_31.wav"
-    af = sp.io.wavfile.read(datapath)
-    aa = np.array(af[1], dtype=float)
-    indices = calculate_acoustic_indices(aa, af[0])
+    # datapath = "Audio/Data/reefos-02_audio_10_17_2023_10_37_31.wav"
+    # datapath = "Audio/Data/reefos-01_audio_11_06_2023_12_55_47.wav"
+    # datapath = "Audio/Data/reefos-01_audio_11_05_2023_08_41_51.wav"
+    datapath = "Audio/Data/reefos-01_audio_11_06_2023_15_08_08.wav"
+    with open(datapath, 'rb') as audio_file:
+        aa, sample_rate = sf.read(io.BytesIO(audio_file.read()))
+        indices = calculate_acoustic_indices(aa, sample_rate)
