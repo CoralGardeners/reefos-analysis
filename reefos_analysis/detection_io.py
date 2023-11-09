@@ -4,12 +4,11 @@ import datetime as dt
 import pytz
 import numpy as np
 from dataclasses import dataclass
-from types import SimpleNamespace
-from typing import Iterator, Optional, Tuple
+from typing import Optional
 
-import influxdb_client
-from influxdb_client import Point, Bucket, WritePrecision
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client import Point, WritePrecision
+
+from reefos_analysis.infliux_util import setup_influx
 
 
 @dataclass
@@ -118,18 +117,6 @@ def mock_influx_query_results(detections):
 
 
 # %%
-influx_write_api = None
-
-
-def setup_influx(influxdb_url, influxdb_token, influxdb_org):
-    # Set up Influx
-    global influx_write_api
-    if influx_write_api is None:
-        write_client = influxdb_client.InfluxDBClient(url=influxdb_url, token=influxdb_token, org=influxdb_org)
-        influx_write_api = write_client.write_api(write_options=SYNCHRONOUS)
-    return influx_write_api
-
-
 def update_influx(det, classes, image_name, bucket_name, model_name, model_version, env):
     write_api = setup_influx(env.influxdb_url, env.influxdb_token, env.influxdb_org)
 

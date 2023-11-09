@@ -4,6 +4,9 @@ from scipy.stats import entropy
 
 import io
 import soundfile as sf
+from influxdb_client import Point
+
+from reefos_analysis.infliux_util import setup_influx
 
 # %%
 # acoustic index parameters
@@ -77,6 +80,14 @@ def calculate_acoustic_indices(audio_data, sample_rate):
     indices['SNRt'] = round(SNRt, 2)
 
     return indices
+
+
+def update_influx_bioacoustics(indices, timestamp, env, version="0.1"):
+    write_api = setup_influx(env.influxdb_url, env.influxdb_token, env.influxdb_org)
+    point = Point("bioacoustics").tag("version", version)
+    for idx, val in indices.items():
+        point = point.field(idx, val)
+    write_api.write(bucket=env.bucket_name, record=point)
 
 
 # %%
