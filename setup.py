@@ -24,6 +24,7 @@ setup(
         "scipy",
         "soundfile",
         "influxdb_client",
-        "ultralytics"
+        "firebase-admin",
+        "ultralytics",
     ],
 )

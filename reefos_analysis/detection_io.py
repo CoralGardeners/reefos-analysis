@@ -8,7 +8,7 @@ from typing import Optional
 
 from influxdb_client import Point, WritePrecision
 
-from reefos_analysis.infliux_util import setup_influx
+from reefos_analysis.dbutils.influx_util import setup_influx
 
 
 @dataclass

@@ -2,14 +2,17 @@ import numpy as np
 import pandas as pd
 
 
-def get_species_counts(detections):
+def get_species_counts(detections, labels):
     results = [rec.values for table in detections for rec in table.records]
     if len(results) == 0:
         print("ERROR: no detections")
         return None
     df = pd.DataFrame(results).drop(columns=['result', 'table'])
-    _df = df[df._field == 'bbox_top_left_x'].groupby('_time')['class'].value_counts()
+    _df = df[df._field == 'detection_index'].groupby('_time')['class'].value_counts()
     cnt_df = _df.unstack().fillna(0).reset_index()
+    for col in labels:
+        if col not in cnt_df:
+            cnt_df[col] = 0
     return cnt_df
 
 
@@ -20,16 +23,13 @@ def _health_from_cover(log_cover):
     # clip and scale to (0, 100)
     health = 100 * np.clip(health, 0, 1)
     return health
-    
 
-def get_fish_health_from_counts(count_df, min_count=100):
+
+def get_fish_health_from_counts(count_df, labels, min_count=100):
     def divide_and_fill_na(vals1, vals2):
         return np.log10(np.divide(vals1, vals2,
                                   out=np.zeros_like(vals1),
                                   where=(vals2 != 0)))
-
-    labels = ['brown_tang', 'butterflyfish', 'fish',
-              'parrotfish', 'surgeonfish']
 
     if count_df is None:
         return None, None
@@ -47,20 +47,19 @@ def get_fish_health_from_counts(count_df, min_count=100):
     # compute cover estimate from fish abundance ratios. MCR Linear regression results:
     # ['Log_Cropper_CC_Ratio', 'Log_Corallivore_CC_Ratio', 'Log_Corallivore_ScrapeExcav_Ratio']
     # Linear model R^2 0.5868659580053202
-    # [    0.30485    0.091695      0.3027]
-    # -0.8072201982465221
     estimated_log_coral = (0.30 * sf_bt + 0.092 * bf_bt + 0.30 * bf_pf - 0.81)
     # health is linear position in range (0.02, 0.5)
     health = _health_from_cover(estimated_log_coral)
     return health, (class_counts / class_counts.sum()).to_dict()
 
 
-def get_fish_health(detections, min_count=100):
+def get_fish_health(detections, min_count=100, labels=['brown_tang', 'butterflyfish', 'fish',
+                                                       'parrotfish', 'surgeonfish']):
     if len(detections) == 0:
         return 0, None
     # get class counts from raw detections
-    count_df = get_species_counts(detections)
-    return get_fish_health_from_counts(count_df, min_count=min_count)
+    count_df = get_species_counts(detections, labels)
+    return get_fish_health_from_counts(count_df, labels, min_count=min_count)
 
 
 def get_coral_health(cover, health, bleaching):
