@@ -6,20 +6,28 @@ import io
 import soundfile as sf
 from influxdb_client import Point
 
-from reefos_analysis.infliux_util import setup_influx
+from reefos_analysis.dbutils.influx_util import setup_influx
 
 # %%
 # acoustic index parameters
-ai_parameters = {
+default_ai_params = {
     'ADI': {'threshold': 1e-5},
-    'BI': {'lofreq': 100, 'hifreq': 5000, 'threshold': 1e-7},
-    'NDSI': {'lofreq': 100, 'midfreq': 1000, 'hifreq': 5000},
+    'BI': {'lofreq': 50, 'hifreq': 2000, 'threshold': 1e-7},
+    'NDSI': {'lofreq': 50, 'midfreq': 500, 'hifreq': 5000},
 }
 
 
-def calculate_acoustic_indices(audio_data, sample_rate):
+def calculate_acoustic_indices(audio_data, sample_rate, max_freq=None, ai_params=None,
+                               window_len=2048, frac_overlap=0.5):
+    ai_parameters = ai_params or default_ai_params
     # Generate the spectrogram
-    frequencies, times, Sxx = spectrogram(audio_data, fs=sample_rate)
+    noverlap = int(window_len * frac_overlap)
+    frequencies, times, Sxx = spectrogram(audio_data, fs=sample_rate,
+                                          window="hann", noverlap=noverlap, nperseg=window_len)
+    if max_freq is not None and max_freq < sample_rate / 2:
+        mask = frequencies < max_freq
+        frequencies = frequencies[mask]
+        Sxx = Sxx[mask]
 
     indices = {}
 

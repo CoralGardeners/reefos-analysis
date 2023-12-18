@@ -2,7 +2,7 @@
 # For each outplant, get all corals. Compute stats: number of corals, corals per bommie/structure,
 # number of species, species per bommie/structure
 
-import reefos_analysis.firestore_util as fsu
+import reefos_analysis.dbutils.firestore_util as fsu
 import pandas as pd
 # %%
 
