@@ -6,7 +6,7 @@ import io
 import soundfile as sf
 from influxdb_client import Point
 
-from reefos_analysis.dbutils.influx_util import setup_influx
+import reefos_analysis.dbutils.influx_util as iu
 
 # %%
 # acoustic index parameters
@@ -91,7 +91,7 @@ def calculate_acoustic_indices(audio_data, sample_rate, max_freq=None, ai_params
 
 
 def update_influx_bioacoustics(indices, timestamp, env, version="0.1"):
-    write_api = setup_influx(env.influxdb_url, env.influxdb_token, env.influxdb_org)
+    write_api = iu.setup_influx(env.influxdb_url, env.influxdb_token, env.influxdb_org)
     point = Point("bioacoustics").tag("version", version)
     for idx, val in indices.items():
         point = point.field(idx, val)
