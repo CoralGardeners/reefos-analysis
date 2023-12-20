@@ -65,8 +65,23 @@ def update_outplant_stats(branches, write_stats=True):
                     print(stats)
 
 
+def get_nursery_fragments(branch_doc, nursery_doc):
+    # get fragments for the branch
+    branch_collections = {coll.id: coll for coll in branch_doc.collections()}
+    fragment_collection = branch_collections[fsu.collections['fragments']]
+
+    nu_id = nursery_doc.id
+    nu_info = nursery_doc.get().to_dict()
+    # query fragment collection for fragments (corals) in the nursery
+    nursery_fragments = fragment_collection.where("location.nurseryID",
+                                                  "==",
+                                                  nu_id).get()
+    nu_info['fragments'] = nursery_fragments
+    return nu_info
+
+
 def update_nursery_stats(branches, write_stats=True):
-    def get_nursery_stats(nu_info, nu_id):
+    def get_nursery_stats(nu_info):
         # compute:
         #    total number of frags planted
         #    total number of spp planted
@@ -100,9 +115,24 @@ def update_nursery_stats(branches, write_stats=True):
                                                               nu_id).get()
                 nu_info['fragments'] = nursery_fragments
                 # compute stats from outplant data
-                stats = get_nursery_stats(nu_info, nu_id)
+                stats = get_nursery_stats(nu_info)
                 # save stats to firestore
                 if write_stats:
                     nursery.set({"stats": stats}, merge=True)
                 else:   # for debugging
                     print(f"{nu_info['name']}: {stats}")
+
+
+def get_nurseries_of_branch(branch_doc):
+    # get collections in branch and data about the branch (name and location)
+    branch_collections = {coll.id: coll for coll in branch_doc.reference.collections()}
+    # get nurseries in the branch
+    if fsu.collections['nurseries'] in branch_collections:
+        # get nursery info
+        nursery_collection = branch_collections[fsu.collections['nurseries']]
+    else:
+        nursery_collection = None
+    return nursery_collection
+
+
+

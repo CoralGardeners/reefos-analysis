@@ -1,2 +1,3 @@
 reefos_analysis.egg-info/
 .DS_Store
+__pycache__/
