@@ -65,6 +65,16 @@ def update_outplant_stats(branches, write_stats=True):
                     print(stats)
 
 
+def get_branch_collection_count(branch_doc, collection):
+    # get fragments for the branch
+    branch_collections = {coll.id: coll for coll in branch_doc.reference.collections()}
+    coll = fsu.collections[collection]
+    if coll in branch_collections:
+        _collection = branch_collections[coll]
+        return _collection.count().get()[0][0].value
+    return 0
+
+
 def get_nursery_fragments(branch_doc, nursery_doc):
     # get fragments for the branch
     branch_collections = {coll.id: coll for coll in branch_doc.collections()}
@@ -76,24 +86,26 @@ def get_nursery_fragments(branch_doc, nursery_doc):
     nursery_fragments = fragment_collection.where("location.nurseryID",
                                                   "==",
                                                   nu_id).get()
-    nu_info['fragments'] = nursery_fragments
+    nu_info['fragments'] = {frag.id: frag for frag in nursery_fragments}
+    nu_info['id'] = nu_id
     return nu_info
 
 
-def update_nursery_stats(branches, write_stats=True):
-    def get_nursery_stats(nu_info):
-        # compute:
-        #    total number of frags planted
-        #    total number of spp planted
-        frag_counts = len(nu_info['fragments'])
-        spp_df = pd.DataFrame([frag.get('coral') for frag in nu_info['fragments']]).drop_duplicates()
-        # compute nursery stats
-        stats = {
-            'total_corals': frag_counts,
-            'total_coral_species': len(spp_df)
-            }
-        return stats
+def get_nursery_stats(nu_info):
+    # compute:
+    #    total number of frags planted
+    #    total number of spp planted
+    frag_counts = len(nu_info['fragments'])
+    spp_df = pd.DataFrame([frag.get('coral') for frag in nu_info['fragments'].values()]).drop_duplicates()
+    # compute nursery stats
+    stats = {
+        'total_corals': frag_counts,
+        'total_coral_species': len(spp_df)
+        }
+    return stats
 
+
+def update_nursery_stats(branches, write_stats=True):
     # get outplant data for each branch
     for branch_doc in branches.list_documents():
         # get collections in branch and data about the branch (name and location)
@@ -113,7 +125,7 @@ def update_nursery_stats(branches, write_stats=True):
                 nursery_fragments = fragment_collection.where("location.nurseryID",
                                                               "==",
                                                               nu_id).get()
-                nu_info['fragments'] = nursery_fragments
+                nu_info['fragments'] = {frag.id: frag for frag in nursery_fragments}
                 # compute stats from outplant data
                 stats = get_nursery_stats(nu_info)
                 # save stats to firestore
@@ -123,16 +135,13 @@ def update_nursery_stats(branches, write_stats=True):
                     print(f"{nu_info['name']}: {stats}")
 
 
-def get_nurseries_of_branch(branch_doc):
+def get_branch_collection(branch_doc, collection_type):
     # get collections in branch and data about the branch (name and location)
     branch_collections = {coll.id: coll for coll in branch_doc.reference.collections()}
-    # get nurseries in the branch
-    if fsu.collections['nurseries'] in branch_collections:
+    # get collections in the branch
+    if fsu.collections[collection_type] in branch_collections:
         # get nursery info
-        nursery_collection = branch_collections[fsu.collections['nurseries']]
+        nursery_collection = branch_collections[fsu.collections[collection_type]]
     else:
         nursery_collection = None
     return nursery_collection
-
-
-
