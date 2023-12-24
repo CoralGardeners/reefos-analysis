@@ -141,7 +141,41 @@ def get_branch_collection(branch_doc, collection_type):
     # get collections in the branch
     if fsu.collections[collection_type] in branch_collections:
         # get nursery info
-        nursery_collection = branch_collections[fsu.collections[collection_type]]
+        collection = branch_collections[fsu.collections[collection_type]]
     else:
-        nursery_collection = None
-    return nursery_collection
+        collection = None
+    return collection
+
+
+def get_outplant_cells_fragments(branch_doc, outplant_doc):
+    # get fragments for the branch
+    branch_collections = {coll.id: coll for coll in branch_doc.collections()}
+    fragment_collection = branch_collections[fsu.collections['fragments']]
+
+    op_id = outplant_doc.id
+    op_info = outplant_doc.get().to_dict()
+    cells = outplant_doc.collections()['OutplantCells']
+    # query fragment collection for outplanted corals
+    outplant_fragments = fragment_collection.where("outplantInfo.outplantCellID",
+                                                   "in",
+                                                   cells).get()
+    op_info['fragments'] = {frag.id: frag for frag in outplant_fragments}
+    op_info['cells'] = cells
+    op_info['id'] = op_id
+    return op_info
+
+
+def get_outplant_stats(op_info):
+    # compute:
+    #    total number of frags planted
+    #    total number of spp planted
+    cell_counts = len(op_info['cells'])
+    frag_counts = len(op_info['fragments'])
+    spp_df = pd.DataFrame([frag.get('coral') for frag in op_info['fragments'].values()]).drop_duplicates()
+    # compute outplant stats
+    stats = {
+        'number_cells': cell_counts,
+        'total_corals': frag_counts,
+        'total_coral_species': len(spp_df)
+        }
+    return stats
