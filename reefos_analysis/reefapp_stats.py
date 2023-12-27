@@ -2,6 +2,8 @@
 # For each outplant, get all corals. Compute stats: number of corals, corals per bommie/structure,
 # number of species, species per bommie/structure
 
+# from google.cloud.firestore_v1.base_query import FieldFilter
+
 import reefos_analysis.dbutils.firestore_util as fsu
 import pandas as pd
 # %%
@@ -65,9 +67,9 @@ def update_outplant_stats(branches, write_stats=True):
                     print(stats)
 
 
-def get_branch_collection_count(branch_doc, collection):
+def get_branch_collection_count(bd_ref, collection):
     # get fragments for the branch
-    branch_collections = {coll.id: coll for coll in branch_doc.reference.collections()}
+    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
     coll = fsu.collections[collection]
     if coll in branch_collections:
         _collection = branch_collections[coll]
@@ -75,19 +77,20 @@ def get_branch_collection_count(branch_doc, collection):
     return 0
 
 
-def get_nursery_fragments(branch_doc, nursery_doc):
+def get_nursery_fragments(branch_doc_path, nursery_doc_path):
     # get fragments for the branch
-    branch_collections = {coll.id: coll for coll in branch_doc.collections()}
+    bd_ref = fsu.get_reference(branch_doc_path)
+    nd_ref = fsu.get_reference(nursery_doc_path)
+    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
     fragment_collection = branch_collections[fsu.collections['fragments']]
 
-    nu_id = nursery_doc.id
-    nu_info = nursery_doc.get().to_dict()
+    nu_info = nd_ref.get().to_dict()
+    nu_info['id'] = nd_ref.id
     # query fragment collection for fragments (corals) in the nursery
     nursery_fragments = fragment_collection.where("location.nurseryID",
                                                   "==",
-                                                  nu_id).get()
+                                                  nd_ref.id).get()
     nu_info['fragments'] = {frag.id: frag for frag in nursery_fragments}
-    nu_info['id'] = nu_id
     return nu_info
 
 
@@ -135,9 +138,10 @@ def update_nursery_stats(branches, write_stats=True):
                     print(f"{nu_info['name']}: {stats}")
 
 
-def get_branch_collection(branch_doc, collection_type):
+def get_branch_collection(branch_doc_path, collection_type):
+    bd_ref = fsu.get_reference(branch_doc_path)
     # get collections in branch and data about the branch (name and location)
-    branch_collections = {coll.id: coll for coll in branch_doc.reference.collections()}
+    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
     # get collections in the branch
     if fsu.collections[collection_type] in branch_collections:
         # get nursery info
@@ -147,21 +151,33 @@ def get_branch_collection(branch_doc, collection_type):
     return collection
 
 
-def get_outplant_cells_fragments(branch_doc, outplant_doc):
-    # get fragments for the branch
-    branch_collections = {coll.id: coll for coll in branch_doc.collections()}
+def get_outplant_cells_fragments(branch_doc_path, outplant_doc_path):
+    bd_ref = fsu.get_reference(branch_doc_path)
+    op_ref = fsu.get_reference(outplant_doc_path)
+    # get fragments
+    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
     fragment_collection = branch_collections[fsu.collections['fragments']]
-
-    op_id = outplant_doc.id
-    op_info = outplant_doc.get().to_dict()
-    cells = outplant_doc.collections()['OutplantCells']
-    # query fragment collection for outplanted corals
-    outplant_fragments = fragment_collection.where("outplantInfo.outplantCellID",
-                                                   "in",
-                                                   cells).get()
+    # get outpland info
+    op_info = op_ref.get().to_dict()
+    op_info['id'] = op_ref.id
+    # get cells in this outplant
+    cells = op_ref.collection('OutplantCells')
+    cell_map = {cell.id: cell for cell in cells.get()}
+    # get fragments with matching cell_ids, query only takes up to 30 cellids
+    cell_ids = list(cell_map.keys())
+    outplant_fragments = []
+    idx = 0
+    max_incr = 30
+    cnt = len(cell_ids)
+    while idx < cnt:
+        # query fragment collection for outplanted corals
+        outplant_fragments.extend(fragment_collection.where("outplantInfo.outplantCellID",
+                                                            "in",
+                                                            cell_ids[idx:idx + 30]).get())
+        idx += max_incr
+    # add fragments and cells to outplant info
     op_info['fragments'] = {frag.id: frag for frag in outplant_fragments}
-    op_info['cells'] = cells
-    op_info['id'] = op_id
+    op_info['cells'] = cell_map
     return op_info
 
 
