@@ -68,7 +68,7 @@ def update_outplant_stats(branches, write_stats=True):
 
 
 def get_branch_collection_count(bd_ref, collection):
-    # get fragments for the branch
+    # get count of items in a collection for a branch
     branch_collections = {coll.id: coll for coll in bd_ref.collections()}
     coll = fsu.collections[collection]
     if coll in branch_collections:
