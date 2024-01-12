@@ -77,6 +77,15 @@ def get_branch_collection_count(bd_ref, collection):
     return 0
 
 
+def get_nursery_info(nursery_doc_path):
+    # get fragments for the branch
+    nd_ref = fsu.get_reference(nursery_doc_path)
+
+    nu_info = nd_ref.get().to_dict()
+    nu_info['id'] = nd_ref.id
+    return nu_info
+
+
 def get_nursery_fragments(branch_doc_path, nursery_doc_path):
     # get fragments for the branch
     bd_ref = fsu.get_reference(branch_doc_path)
@@ -149,6 +158,13 @@ def get_branch_collection(branch_doc_path, collection_type):
     else:
         collection = None
     return collection
+
+
+def get_outplant_info(outplant_doc_path):
+    op_ref = fsu.get_reference(outplant_doc_path)
+    op_info = op_ref.get().to_dict()
+    op_info['id'] = op_ref.id
+    return op_info
 
 
 def get_outplant_cells_fragments(branch_doc_path, outplant_doc_path):
