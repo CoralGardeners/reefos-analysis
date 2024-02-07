@@ -37,6 +37,8 @@ def update_outplant_stats(branches, write_stats=True):
         # get collections in branch and data about the branch (name and location)
         branch_collections = {coll.id: coll for coll in branch_doc.collections()}
         # get fragments for the branch
+        if fsu.collections['fragments'] not in branch_collections:
+            continue
         fragment_collection = branch_collections[fsu.collections['fragments']]
 
         # process each outplant in branch
@@ -69,12 +71,38 @@ def update_outplant_stats(branches, write_stats=True):
 
 def get_branch_collection_count(bd_ref, collection):
     # get count of items in a collection for a branch
-    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
-    coll = fsu.collections[collection]
-    if coll in branch_collections:
-        _collection = branch_collections[coll]
-        return _collection.count().get()[0][0].value
-    return 0
+    coll = bd_ref.collection(fsu.collections[collection])
+    return coll.count().get()[0][0].value
+
+
+def get_branch_fragments(branch_doc_path):
+    keep = {'previousLocations', 'colonyID', 'created', 'lost'}
+    # get fragments for the branch
+    bd_ref = fsu.get_reference(branch_doc_path)
+    fragment_collection = bd_ref.collection(fsu.collections['fragments'])
+
+    # get fragments (corals) in the branch
+    fragments = fragment_collection.get()
+    frag_data = []
+    frag_health_data = []
+    for frag in fragments:
+        frag_id = frag.id
+        frag = frag.to_dict()
+        # make sure location has a good value
+        frag['location'] = frag.get('location', {}) or {}
+        # copy and flatten frag data
+        data = {k: v for k, v in frag.items() if k in keep}
+        data = (data | frag.get('location', {}) | frag.get('coral', {})
+                | frag.get('monitoring', {}) | frag.get('outplantInfo', {}))
+        data['id'] = frag_id
+        frag_data.append(data)
+        for hd in frag['healths']:
+            hd['id'] = frag_id
+            hd['nurseryID'] = data.get('nurseryID')
+            hd['colonyID'] = data.get('colonyID')
+            hd['structureID'] = data.get('structureID')
+            frag_health_data.append(hd)
+    return frag_data, frag_health_data
 
 
 def get_nursery_info(nursery_doc_path):
@@ -90,8 +118,7 @@ def get_nursery_fragments(branch_doc_path, nursery_doc_path):
     # get fragments for the branch
     bd_ref = fsu.get_reference(branch_doc_path)
     nd_ref = fsu.get_reference(nursery_doc_path)
-    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
-    fragment_collection = branch_collections[fsu.collections['fragments']]
+    fragment_collection = bd_ref.collection(fsu.collections['fragments'])
 
     nu_info = nd_ref.get().to_dict()
     nu_info['id'] = nd_ref.id
@@ -119,45 +146,33 @@ def get_nursery_stats(nu_info):
 
 def update_nursery_stats(branches, write_stats=True):
     # get outplant data for each branch
-    for branch_doc in branches.list_documents():
-        # get collections in branch and data about the branch (name and location)
-        branch_collections = {coll.id: coll for coll in branch_doc.collections()}
-        # get fragments for the branch
-        fragment_collection = branch_collections[fsu.collections['fragments']]
+    for bd_ref in branches.list_documents():
+        fragment_collection = bd_ref.collection(fsu.collections['fragments'])
+        nursery_collection = bd_ref.collection(fsu.collections['nurseries'])
 
         # process each nursery in the branch
-        if fsu.collections['nurseries'] in branch_collections:
-            # get nursery info
-            print("Getting nursery info")
-            nursery_collection = branch_collections[fsu.collections['nurseries']]
-            for nursery in nursery_collection.list_documents():
-                nu_id = nursery.id
-                nu_info = nursery.get().to_dict()
-                # query fragment collection for fragments (corals) in the nursery
-                nursery_fragments = fragment_collection.where("location.nurseryID",
-                                                              "==",
-                                                              nu_id).get()
-                nu_info['fragments'] = {frag.id: frag for frag in nursery_fragments}
-                # compute stats from outplant data
-                stats = get_nursery_stats(nu_info)
-                # save stats to firestore
-                if write_stats:
-                    nursery.set({"stats": stats}, merge=True)
-                else:   # for debugging
-                    print(f"{nu_info['name']}: {stats}")
+        print("Getting nursery info")
+        for nursery in nursery_collection.list_documents():
+            nu_id = nursery.id
+            nu_info = nursery.get().to_dict()
+            # query fragment collection for fragments (corals) in the nursery
+            nursery_fragments = fragment_collection.where("location.nurseryID",
+                                                          "==",
+                                                          nu_id).get()
+            nu_info['fragments'] = {frag.id: frag for frag in nursery_fragments}
+            # compute stats from outplant data
+            stats = get_nursery_stats(nu_info)
+            # save stats to firestore
+            if write_stats:
+                nursery.set({"stats": stats}, merge=True)
+            else:   # for debugging
+                print(f"{nu_info['name']}: {stats}")
 
 
 def get_branch_collection(branch_doc_path, collection_type):
     bd_ref = fsu.get_reference(branch_doc_path)
-    # get collections in branch and data about the branch (name and location)
-    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
-    # get collections in the branch
-    if fsu.collections[collection_type] in branch_collections:
-        # get nursery info
-        collection = branch_collections[fsu.collections[collection_type]]
-    else:
-        collection = None
-    return collection
+    coll = bd_ref.collection(fsu.collections[collection_type])
+    return coll if coll.count().get()[0][0].value else None
 
 
 def get_outplant_info(outplant_doc_path):
@@ -171,9 +186,8 @@ def get_outplant_cells_fragments(branch_doc_path, outplant_doc_path):
     bd_ref = fsu.get_reference(branch_doc_path)
     op_ref = fsu.get_reference(outplant_doc_path)
     # get fragments
-    branch_collections = {coll.id: coll for coll in bd_ref.collections()}
-    fragment_collection = branch_collections[fsu.collections['fragments']]
-    # get outpland info
+    fragment_collection = bd_ref.collection(fsu.collections['fragments'])
+    # get outplant info
     op_info = op_ref.get().to_dict()
     op_info['id'] = op_ref.id
     # get cells in this outplant

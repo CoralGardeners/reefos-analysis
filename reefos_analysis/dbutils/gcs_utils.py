@@ -16,7 +16,7 @@ def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=No
     # get blobs
     blobs = client.list_blobs(bucket_name, prefix=name_prefix,
                               start_offset=start_offset, end_offset=end_offset)
-    # filter to only include .wav
+    # filter to only include suffix
     if suffix is not None:
         blobs = [blob for blob in blobs if blob.name.endswith(suffix)]
     return blobs
