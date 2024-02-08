@@ -4,6 +4,7 @@
 
 # from google.cloud.firestore_v1.base_query import FieldFilter
 
+from cachetools.func import ttl_cache
 import reefos_analysis.dbutils.firestore_util as fsu
 import pandas as pd
 # %%
@@ -75,6 +76,7 @@ def get_branch_collection_count(bd_ref, collection):
     return coll.count().get()[0][0].value
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_branch_fragments(branch_doc_path):
     keep = {'previousLocations', 'colonyID', 'created', 'lost'}
     # get fragments for the branch
@@ -105,6 +107,7 @@ def get_branch_fragments(branch_doc_path):
     return frag_data, frag_health_data
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_nursery_info(nursery_doc_path):
     # get fragments for the branch
     nd_ref = fsu.get_reference(nursery_doc_path)
@@ -114,6 +117,7 @@ def get_nursery_info(nursery_doc_path):
     return nu_info
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_nursery_fragments(branch_doc_path, nursery_doc_path):
     # get fragments for the branch
     bd_ref = fsu.get_reference(branch_doc_path)
@@ -169,12 +173,14 @@ def update_nursery_stats(branches, write_stats=True):
                 print(f"{nu_info['name']}: {stats}")
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_branch_collection(branch_doc_path, collection_type):
     bd_ref = fsu.get_reference(branch_doc_path)
     coll = bd_ref.collection(fsu.collections[collection_type])
     return coll if coll.count().get()[0][0].value else None
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_outplant_info(outplant_doc_path):
     op_ref = fsu.get_reference(outplant_doc_path)
     op_info = op_ref.get().to_dict()
@@ -182,6 +188,7 @@ def get_outplant_info(outplant_doc_path):
     return op_info
 
 
+@ttl_cache(maxsize=20, ttl=43200)
 def get_outplant_cells_fragments(branch_doc_path, outplant_doc_path):
     bd_ref = fsu.get_reference(branch_doc_path)
     op_ref = fsu.get_reference(outplant_doc_path)
