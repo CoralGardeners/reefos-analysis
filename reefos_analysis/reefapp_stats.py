@@ -185,6 +185,8 @@ def get_outplant_info(outplant_doc_path):
     op_ref = fsu.get_reference(outplant_doc_path)
     op_info = op_ref.get().to_dict()
     op_info['id'] = op_ref.id
+    if 'stats' not in op_info:
+        op_info['stats'] = {'total_corals': 0}
     return op_info
 
 
