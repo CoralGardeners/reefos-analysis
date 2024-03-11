@@ -10,6 +10,14 @@ import pandas as pd
 # %%
 
 
+def clear_cache():
+    cached = [get_branch_fragments, get_nursery_info, get_branch_fragments,
+              get_nursery_info, get_nursery_fragments, get_branch_collection, get_outplant_info]
+    for cached_fn in cached:
+        with cached_fn.cache_lock:
+            cached_fn.cache.clear()
+
+
 def update_outplant_stats(branches, write_stats=True):
     def get_outplant_stats(op_info, op_id):
         # compute:
@@ -190,7 +198,6 @@ def get_outplant_info(outplant_doc_path):
     return op_info
 
 
-@ttl_cache(maxsize=20, ttl=43200)
 def get_outplant_cells_fragments(branch_doc_path, outplant_doc_path):
     bd_ref = fsu.get_reference(branch_doc_path)
     op_ref = fsu.get_reference(outplant_doc_path)
