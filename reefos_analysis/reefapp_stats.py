@@ -142,17 +142,21 @@ def get_nursery_fragments(branch_doc_path, nursery_doc_path):
     return nu_info
 
 
-def get_nursery_stats(nu_info):
+def get_nursery_stats(nu_info, include_structures=False):
     # compute:
     #    total number of frags planted
     #    total number of spp planted
+    #    number of structures (tables, trees) in the nursery
     frag_counts = len(nu_info['fragments'])
     spp_df = pd.DataFrame([frag.get('coral') for frag in nu_info['fragments'].values()]).drop_duplicates()
     # compute nursery stats
     stats = {
         'total_corals': frag_counts,
-        'total_coral_species': len(spp_df)
+        'total_coral_species': len(spp_df),
         }
+    if include_structures:
+        loc_df = pd.DataFrame([frag.get('location') for frag in nu_info['fragments'].values()]).drop_duplicates()
+        stats['total_nursery_structures'] = len(loc_df.structure.unique())
     return stats
 
 
