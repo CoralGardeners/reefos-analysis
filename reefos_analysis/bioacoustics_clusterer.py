@@ -1,3 +1,5 @@
+# train and predict models to cluster mel spectrogram slices
+
 from dataclasses import dataclass
 import pandas as pd
 import numpy as np
@@ -33,7 +35,7 @@ class ClusParams:
     distance: str = 'euclidean'
 
 
-# compute and plot mel spectrogram
+# compute mel spectrogram
 def mel_spectrogram(ts, fs, tmin=None, tmax=None, fmax=5000, overlap=0.5, wd=0.1, n_mels=64, dBref=1.0):
     if tmin is not None and tmax is not None:
         ts = ts[int(tmin * fs):int(tmax * fs)]
