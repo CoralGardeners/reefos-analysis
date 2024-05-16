@@ -203,16 +203,19 @@ def predict_groups_clusters_from_timeseries(models, ts, fs):
     return all_udf, grouped_S, ordered_df, ordered_S, y, cl_df, audio_data, fs
 
 
-def get_timeseries_clusters(ts, fs, models_fname):
+def get_timeseries_clusters(ts, fs, models_fname=None, models=None, get_labels=False):
+    # labels are the fine-scale labels assigned in the initial grouping
+    # clusters are the coarse labels from the second clustering
     # get cluster counds in the chunk of audio
     drop_cols = ['fileid', 'filetime', 'index', 'x', 'y']
-    models = joblib.load(models_fname)
+    if models is None:
+        models = joblib.load(models_fname)
     res = predict_groups_clusters_from_timeseries(models, ts, fs)
     rdf = res[2].drop(columns=drop_cols)
     # get cluster count dict
-    vals = rdf.cluster.value_counts().to_dict()
+    vals = rdf['label' if get_labels else 'cluster'].value_counts().to_dict()
     # make return dict with zero values for clusters not in the results
-    all_clus = res[5].cluster.unique()
+    all_clus = res[5]['index' if get_labels else 'cluster'].unique()
     return {f"Cluster_{clus}": vals[clus] if clus in vals else 0 for clus in all_clus}
 
 
