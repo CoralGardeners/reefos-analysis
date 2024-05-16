@@ -43,8 +43,11 @@ def get_collection(db, coll):
     return db_coll
 
 
-def init_firestore(collection='branches'):
+def init_firestore(org=None, collection='branches'):
     init_firebase_db()
+    if org is not None:
+        coll = get_collection(db, 'Orgs')
+        return coll.document(org).collection(collections[collection])
     return get_collection(db, collections[collection])
 
 
