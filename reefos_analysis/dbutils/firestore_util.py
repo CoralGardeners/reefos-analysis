@@ -47,8 +47,8 @@ def init_firestore(org=None, collection='branches'):
     init_firebase_db()
     if org is not None:
         coll = get_collection(db, 'Orgs')
-        return coll.document(org).collection(collections[collection])
-    return get_collection(db, collections[collection])
+        return coll.document(org).collection(collections.get(collection, collection))
+    return get_collection(db, collections.get(collection, collection))
 
 
 def get_reference(path):

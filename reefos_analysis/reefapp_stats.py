@@ -198,7 +198,10 @@ def get_outplant_info(outplant_doc_path):
     op_info = op_ref.get().to_dict()
     op_info['id'] = op_ref.id
     if 'stats' not in op_info:
-        op_info['stats'] = {'total_corals': 0}
+        op_info['stats'] = {'total_corals': 0,
+                            'total_coral_species': 0,
+                            'spp_per_cell': 0,
+                            'mean_corals_per_cell': 0}
     return op_info
 
 
