@@ -90,6 +90,8 @@ def get_branch_fragments(branch_doc_path):
     # get fragments for the branch
     bd_ref = fsu.get_reference(branch_doc_path)
     fragment_collection = bd_ref.collection(fsu.collections['fragments'])
+    log_collection = bd_ref.collection(fsu.collections['logs'])
+    log_types = {log.id: log.get('monitoringType') for log in log_collection.get()}
 
     # get fragments (corals) in the branch
     fragments = fragment_collection.get()
@@ -111,6 +113,7 @@ def get_branch_fragments(branch_doc_path):
             hd['nurseryID'] = data.get('nurseryID')
             hd['colonyID'] = data.get('colonyID')
             hd['structureID'] = data.get('structureID')
+            hd['monitoringType'] = log_types.get(hd['logID'], 'unknown')
             frag_health_data.append(hd)
     return frag_data, frag_health_data
 
