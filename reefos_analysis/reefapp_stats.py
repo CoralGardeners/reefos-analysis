@@ -113,7 +113,7 @@ def get_branch_fragments(branch_doc_path):
             hd['nurseryID'] = data.get('nurseryID')
             hd['colonyID'] = data.get('colonyID')
             hd['structureID'] = data.get('structureID')
-            hd['monitoringType'] = log_types.get(hd['logID'], 'unknown')
+            hd['monitoringType'] = log_types.get(hd.get('logID'), 'unknown')
             frag_health_data.append(hd)
     return frag_data, frag_health_data
 
