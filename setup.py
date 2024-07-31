@@ -1,6 +1,6 @@
 from setuptools import setup
 
-__version__ = "0.0.21"
+__version__ = "0.0.22"
 __author__ = "Rich Williams"
 __author_email__ = (
     "rich@coralgardeners.org"

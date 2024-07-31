@@ -84,6 +84,23 @@ def get_branch_collection_count(bd_ref, collection):
     return coll.count().get()[0][0].value
 
 
+def get_alive(frag, max_health=6):
+    if frag['monitoring']['monitored'] and len(frag['healths']) > 0:
+        monitored = 1
+        if frag['lost']:
+            alive = 0
+        else:
+            alive = 1
+            for h in frag['healths']:
+                if 'health' in h and h['health'] == max_health:
+                    alive = 0
+                    break
+    else:
+        monitored = 0
+        alive = 0
+    return monitored, alive
+
+
 @ttl_cache(maxsize=20, ttl=43200)
 def get_branch_fragments(branch_doc_path):
     keep = {'previousLocations', 'colonyID', 'created', 'lost'}
@@ -100,6 +117,7 @@ def get_branch_fragments(branch_doc_path):
     for frag in fragments:
         frag_id = frag.id
         frag = frag.to_dict()
+        monitored, alive = get_alive(frag)
         # make sure location has a good value
         frag['location'] = frag.get('location', {}) or {}
         # copy and flatten frag data
@@ -107,6 +125,9 @@ def get_branch_fragments(branch_doc_path):
         data = (data | frag.get('location', {}) | frag.get('coral', {})
                 | frag.get('monitoring', {}) | frag.get('outplantInfo', {}))
         data['id'] = frag_id
+        data['monitored'] = monitored
+        data['alive'] = alive
+
         frag_data.append(data)
         for hd in frag['healths']:
             hd['id'] = frag_id
