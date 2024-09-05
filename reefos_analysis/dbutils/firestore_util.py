@@ -10,7 +10,9 @@ collections = {'branches': 'Branches',
                'nurseries': 'Nurseries',
                'users': 'Users',
                'outplants': 'OutplantSites',
-               'outplantcorals': 'OutplantCells'}
+               'outplantcorals': 'OutplantCells',
+               'controls': 'ControlSites',
+               }
 
 
 creds = 'restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json'
@@ -21,6 +23,7 @@ db = None
 def init_firebase_db():
     global app, db
     # initialize talking to firebase
+    print("Initialize Firestore")
     if app is None:
         cred = credentials.Certificate(creds)
         app = firebase_admin.initialize_app(cred)
@@ -32,6 +35,7 @@ def cleanup_firestore():
     global app, db
     # cleanup - remove the app
     if app is not None:
+        print("Cleanup Firestore")
         firebase_admin.delete_app(app)
         app = None
         db = None
@@ -52,7 +56,7 @@ def init_firestore(org=None, collection='branches'):
 
 
 def get_reference(path):
+    if db is None:
+        init_firebase_db()
     path = path.split('/')
     return db.document(*path)
-
-# %%
