@@ -15,11 +15,15 @@ def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=No
     client = get_gcs_client()
     # get blobs
     blobs = client.list_blobs(bucket_name, prefix=name_prefix,
+                              fields='items(name), nextPageToken',
+                              max_results=1000,
                               start_offset=start_offset, end_offset=end_offset)
     # filter to only include suffix
     if suffix is not None:
-        blobs = [blob for blob in blobs if blob.name.endswith(suffix)]
-    return blobs
+        blob_list = [blob for blob in blobs if blob.name.endswith(suffix)]
+    else:
+        blob_list = list(blobs)
+    return blob_list
 
 
 def download_gcs_file(blob, dst_path=None):
@@ -51,16 +55,16 @@ def download_blobs(blob_list, file_path, clean_destination=True):
         download_gcs_file(blob, file_path)
 
 
-def get_blobs_of_dates(start_date, end_date=None, blobs=None):
-    blobs = blobs or get_gcs_blob_list()
-    date_blobs = []
-    for blob in blobs:
-        fn = blob.name.split('/')[-1]
-        dt = dio.get_filename_time(fn)
-        if end_date is None:
-            if dt.date() == start_date:
-                date_blobs.append(blob)
-        else:
-            if dt.date() >= start_date and dt.date() <= end_date:
-                date_blobs.append(blob)
-    return date_blobs
+# def get_blobs_of_dates(start_date, end_date=None, blobs=None):
+#    blobs = blobs or get_gcs_blob_list()
+#    date_blobs = []
+#    for blob in blobs:
+#        fn = blob.name.split('/')[-1]
+#        dt = dio.get_filename_time(fn)
+#        if end_date is None:
+#            if dt.date() == start_date:
+#                date_blobs.append(blob)
+#        else:
+#            if dt.date() >= start_date and dt.date() <= end_date:
+#                date_blobs.append(blob)
+#    return date_blobs
