@@ -1,6 +1,5 @@
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+from firebase_admin import firestore, credentials, initialize_app, storage
 
 collections = {'branches': 'Branches',
                'genera': 'CoralGenera',
@@ -23,10 +22,10 @@ db = None
 def init_firebase_db():
     global app, db
     # initialize talking to firebase
-    print("Initialize Firestore")
     if app is None:
+        print("Initialize Firestore")
         cred = credentials.Certificate(creds)
-        app = firebase_admin.initialize_app(cred)
+        app = firebase_admin.initialize_app(cred, {'storageBucket': 'restoration-ios.appspot.com'})
     db = firestore.client()
     return app, db
 
@@ -60,3 +59,22 @@ def get_reference(path):
         init_firebase_db()
     path = path.split('/')
     return db.document(*path)
+
+
+def _get_blob(org, branch, fname):
+    init_firebase_db()
+    if fname[0] == '/':
+        fname = fname[1:]
+    source_blob = f"{org}/{branch}/{fname}"
+    bucket = storage.bucket()
+    return bucket.blob(source_blob)
+
+
+def download_blob(org, branch, fname, dest_file):
+    blob = _get_blob(org, branch, fname)
+    blob.download_to_filename(dest_file)
+
+
+def get_blob_url(org, branch, fname):
+    blob = _get_blob(org, branch, fname)
+    return blob.public_url

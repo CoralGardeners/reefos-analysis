@@ -1,7 +1,9 @@
 from google.cloud import storage
 from reefos_analysis import detection_io as dio
+import reefos_analysis.dbutils.firestore_util as fsu
 
 _gcs_client = None
+_fs_gcs_client = None
 
 
 def get_gcs_client():
@@ -11,12 +13,21 @@ def get_gcs_client():
     return _gcs_client
 
 
-def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=None, suffix='.wav'):
-    client = get_gcs_client()
+def get_fs_gcs_client():
+    global _fs_gcs_client
+    if _fs_gcs_client is None:
+        _fs_gcs_client = storage.Client.from_service_account_json(fsu.creds)
+    return _fs_gcs_client
+
+
+def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=None,
+                      suffix='.wav', client=None, max_results=1000):
+    if client is None:
+        client = get_gcs_client()
     # get blobs
     blobs = client.list_blobs(bucket_name, prefix=name_prefix,
                               fields='items(name), nextPageToken',
-                              max_results=1000,
+                              max_results=max_results,
                               start_offset=start_offset, end_offset=end_offset)
     # filter to only include suffix
     if suffix is not None:
@@ -26,8 +37,9 @@ def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=No
     return blob_list
 
 
-def download_gcs_file(blob, dst_path=None):
-    client = get_gcs_client()
+def download_gcs_file(blob, dst_path=None, client=None):
+    if client is None:
+        client = get_gcs_client()
     if dst_path is None:
         return blob.download_as_bytes(client)
     # Generate the destination file path
