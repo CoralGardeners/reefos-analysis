@@ -2,6 +2,8 @@ from google.cloud import storage
 from reefos_analysis import detection_io as dio
 import reefos_analysis.dbutils.firestore_util as fsu
 
+import datetime as dt
+
 _gcs_client = None
 _fs_gcs_client = None
 
@@ -21,19 +23,40 @@ def get_fs_gcs_client():
 
 
 def get_gcs_blob_list(bucket_name, name_prefix, start_offset=None, end_offset=None,
-                      suffix='.wav', client=None, max_results=1000):
+                      suffix='.wav', client=None, max_results=1000, local_search=True):
+    def _get_date(nm):
+        if nm is not None and nm.endswith(suffix):
+            parts = nm.split('/')[-1].split('_')
+            month = int(parts[0])
+            day = int(parts[1])
+            year = int(parts[2])
+            return dt.date(year=year, month=month, day=day)
+        return None
+
+    def _between(nm, start, end):
+        dd = _get_date(nm)
+        return dd >= start and dd <= end
+
     if client is None:
         client = get_gcs_client()
     # get blobs
-    blobs = client.list_blobs(bucket_name, prefix=name_prefix,
-                              fields='items(name), nextPageToken',
-                              max_results=max_results,
-                              start_offset=start_offset, end_offset=end_offset)
+    if local_search:
+        all_blobs = client.list_blobs(bucket_name, prefix=name_prefix,
+                                      fields='items(name), nextPageToken',
+                                      max_results=None,
+                                      start_offset=None, end_offset=None)
+        start_date = _get_date(start_offset)
+        end_date = _get_date(end_offset)
+        blob_list = [blob for blob in all_blobs if _between(blob.name, start_date, end_date)]
+    else:
+        blobs = client.list_blobs(bucket_name, prefix=name_prefix,
+                                  fields='items(name), nextPageToken',
+                                  max_results=max_results,
+                                  start_offset=start_offset, end_offset=end_offset)
+        blob_list = list(blobs)
     # filter to only include suffix
     if suffix is not None:
-        blob_list = [blob for blob in blobs if blob.name.endswith(suffix)]
-    else:
-        blob_list = list(blobs)
+        blob_list = [blob for blob in blob_list if blob.name.endswith(suffix)]
     return blob_list
 
 

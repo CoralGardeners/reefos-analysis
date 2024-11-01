@@ -23,6 +23,21 @@ class Record:
 
 # %%
 
+def community_to_points(comm, model_name, model_version, reef_name, timestamp):
+    points = []
+    # add influxdb Points for the raw detections
+    for k, v in comm.items():
+        point = (Point("fish_community_fractions")
+                 .tag("model", model_name)
+                 .tag("version", model_version)
+                 .tag("reef_name", reef_name)
+                 .field(k, v)
+                 .time(timestamp)
+                 )
+        points.append(point)
+    return points
+
+
 def det_to_points(detections, classes, image_name, model_name, model_version):
     def _get_mean(dets, attr):
         # compute mean of some attribute in a list of detections
@@ -39,13 +54,13 @@ def det_to_points(detections, classes, image_name, model_name, model_version):
                  .tag("model", model_name)
                  .tag("version", model_version)
                  .tag("class", d['class'])
+                 .tag("detection_index", idx)
                  .field("file", image_name)
                  .field("confidence", d['conf'])
                  .field("bbox_top_left_x", d['xyxy'][0])
                  .field("bbox_top_left_y", d['xyxy'][1])
                  .field("bbox_bottom_right_x", d['xyxy'][2])
                  .field("bbox_bottom_right_y", d['xyxy'][3])
-                 .field("detection_index", idx)
                  .time(timestamp)
                  )
         points.append(point)
@@ -85,8 +100,13 @@ def det_to_points(detections, classes, image_name, model_name, model_version):
     return points
 
 
-def get_filename_time(fn):
-    dt_notz = dt.datetime.strptime(fn.split('.')[0], "%m_%d_%Y_%H_%M_%S")
+def get_filename_time(fn, with_tz=True):
+    try:
+        dt_notz = dt.datetime.strptime(fn.split('.')[0], "%Y_%m_%d_%H_%M_%S")
+    except Exception as e:
+        dt_notz = dt.datetime.strptime(fn.split('.')[0], "%m_%d_%Y_%H_%M_%S")
+    if not with_tz:
+        return dt_notz
     tahiti_tz = pytz.timezone('Pacific/Tahiti')
     dt_tahiti = tahiti_tz.localize(dt_notz)
     return dt_tahiti
@@ -122,6 +142,7 @@ def update_influx(det, classes, image_name, bucket_name, model_name, model_versi
 
     points = det_to_points(det, classes, image_name, model_name, model_version)
     write_api.write(bucket=bucket_name, record=points, write_precision=WritePrecision.S)
+
 
 # %%
 @dataclass

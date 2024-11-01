@@ -60,11 +60,14 @@ def _run_query(env, query, fields):
     query_api = setup_influx_query(env.influxdb_url, env.influxdb_token, env.influxdb_org)
     result = query_api.query(org=env.influxdb_org, query=query)
     results = [rec.values for table in result for rec in table.records]
-    df = pd.DataFrame(results).drop(columns=['result', 'table'])
-    if '_field' in df:
-        df = df[df._field.isin(fields)].sort_values(['_time', '_field'])
+    if len(results) > 0:
+        df = pd.DataFrame(results).drop(columns=['result', 'table'])
+        if '_field' in df:
+            df = df[df._field.isin(fields)].sort_values(['_time', '_field'])
+        else:
+            df = df.rename(columns={'_value': fields[0]})
     else:
-        df = df.rename(columns={'_value': fields[0]})
+        df = None
     return df
 
 
