@@ -8,7 +8,8 @@ def get_species_counts(detections, labels):
         print("ERROR: no detections")
         return None
     df = pd.DataFrame(results).drop(columns=['result', 'table'])
-    _df = df[df._field == 'detection_index'].groupby('_time')['class'].value_counts()
+#    _df = df[df._field == 'detection_index'].groupby('_time')['class'].value_counts()
+    _df = df.groupby('_time')['class'].value_counts()
     cnt_df = _df.unstack().fillna(0).reset_index()
     for col in labels:
         if col not in cnt_df:
