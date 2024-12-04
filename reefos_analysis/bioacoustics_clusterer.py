@@ -8,7 +8,7 @@ import numpy as np
 import joblib
 import librosa as lr
 import umap
-from hdbscan import HDBSCAN, membership_vector, all_points_membership_vectors
+from hdbscan import HDBSCAN, membership_vector
 
 # influx-reltaed imports
 from influxdb_client import Point
@@ -21,6 +21,7 @@ class SpecParams:
     n_mels: int = 128
     ts_slice: float = 0.1
     overlap: float = 0.75
+    fmin: int = None
     fmax: int = 800
 
 
@@ -34,12 +35,12 @@ class ClusParams:
     cluster_selection_epsilon: float = 1
     distance: str = 'euclidean'
 
-
 # compute mel spectrogram
-def mel_spectrogram(ts, fs, tmin=None, tmax=None, fmax=5000, overlap=0.5, wd=0.1, n_mels=64, dBref=1.0):
+def mel_spectrogram(ts, fs, tmin=None, tmax=None, fmin=None, fmax=5000, overlap=0.5, wd=0.1, n_mels=64, dBref=1.0):
     if tmin is not None and tmax is not None:
         ts = ts[int(tmin * fs):int(tmax * fs)]
-    fmin = 1 / wd
+    if fmin is None:
+        fmin = 1 / wd
     if fmax is None or fmax > (fs / 2):
         fmax = (fs / 2)
     nperseg = int(wd * fs)
@@ -73,14 +74,17 @@ def train_models(S_dB, x, xvals=None, fileids=None, plot_dist=True, cp=None):
     X_train = S_dB.T
     # reduce dimensionality using umap
     # use parameters recommended in umap docs for cluster analysis
-    n_neighbors = np.clip(X_train.shape[0] // 200, 8, 50)
+    ndata = X_train.shape[0]
+    n_neighbors = np.clip(ndata // 200, min(ndata // 4, 8), 50)
     umap_model = umap.UMAP(n_components=cp.n_components, min_dist=0,
                            n_neighbors=n_neighbors, metric=cp.distance)
     umap_model.fit(X_train)
     umap_layout = umap_model.embedding_
     # train hdbscan model to cluster the umap embedding
     hdb_model = HDBSCAN(min_cluster_size=cp.min_clus_size, min_samples=cp.min_samples,
-                        cluster_selection_epsilon=cp.cluster_selection_epsilon, prediction_data=True)
+                        cluster_selection_epsilon=cp.cluster_selection_epsilon,
+                        cluster_selection_method='leaf',
+                        prediction_data=True)
     hdb_model.fit(umap_layout)
     return umap_model, hdb_model
 
@@ -98,7 +102,9 @@ def run_models(umap_model, hdb_model, S_dB, times, fileids=None, xvals=None):
     # put umap results into a dataframe
     udf = pd.DataFrame({'max': max_vals,
                         'time': times,
-                        'x': umap_layout[:, 0], 'y': umap_layout[:, 1],
+                        'x': umap_layout[:, 0],
+                        'y': umap_layout[:, 1],
+                        'z': umap_layout[:, 2],
                         'label': labels,
                         'label_prob': strengths
                         })
@@ -124,11 +130,12 @@ def make_timeseries_dataset(ts, fs, spec_params):
 
 
 # compute mean spectrogram mel amplitudes for each group
-# cluster each group based on those means, using umap and hdbscan
-def cluster_audio_groups(all_udf, grouped_S, cl_df=None):
+# order the groups using a 1-D umap (precomputed if predicting, compute if training)
+def order_audio_groups(all_udf, grouped_S, order_df=None):
     S_chunks = {}
     df_chunks = {}
     S_means = []
+    S_medians = []
     all_udf = all_udf.reset_index()
     for val, df in all_udf.groupby('label'):
         idx1 = df.index.min()
@@ -137,86 +144,82 @@ def cluster_audio_groups(all_udf, grouped_S, cl_df=None):
         S_grp = grouped_S[:, idx1:(idx2 + 1)]
         S_chunks[val] = S_grp
         S_means.append(S_grp.mean(axis=1))
+        S_medians.append(np.median(S_grp, axis=1))
 
     S_means = np.stack(S_means)
+    S_medians = np.stack(S_medians)
 
-    if cl_df is None:
-        # do a 2-D umap embedding of the cluster centers to get the best ordering of the clusters
-        umap_2D = umap.UMAP(metric='euclidean', n_components=2, min_dist=0, n_neighbors=10)
-        umap_2D_layout = umap_2D.fit_transform(S_means)
-        # use hdbscan to label clusters
-        hdb2D = HDBSCAN(min_cluster_size=3, min_samples=1, cluster_selection_epsilon=0.4, prediction_data=True)
-        hdb2D.fit(umap_2D_layout)
-        soft_clusters = all_points_membership_vectors(hdb2D)
-        labels = [np.argmax(x) for x in soft_clusters]
-        cl_df = pd.DataFrame({'x': umap_2D_layout[:, 0], 'y': umap_2D_layout[:, 1], 'cluster': labels})
-        cl_df = cl_df.reset_index().rename({'index': 'label'})
-        cl_df.sort_values(['cluster', 'x'], inplace=True)
+    if order_df is None:
+        # do a 1-D umap embedding of the cluster centers to get the best ordering of the clusters
+        umap_1D = umap.UMAP(metric='cosine', n_components=1, min_dist=0, n_neighbors=10)
+        umap_1D_layout = umap_1D.fit_transform(S_medians)
+        order_df = pd.DataFrame({'x': umap_1D_layout[:, 0], 'group': range(len(S_medians))}).sort_values('x')
 
     # re-order the spectrogram
-    order = cl_df.index.values
+    order = order_df.group.values
 
     ordered_Ss = []
     ordered_dfs = []
-    for idx in order:
+    for order_idx, idx in enumerate(order):
         if idx in df_chunks:
             df = df_chunks[idx]
-            df['label'] = idx
-            df['cluster'] = cl_df.loc[idx, 'cluster']
+            df['group'] = idx
+            df['order'] = order_idx
             ordered_Ss.append(S_chunks[idx])
             ordered_dfs.append(df)
 
     ordered_S = np.concatenate(ordered_Ss, axis=1)
     ordered_df = pd.concat(ordered_dfs)
-    return ordered_S, ordered_df, cl_df
+    return ordered_S, ordered_df, order_df
 
 
 ########
-# The prediction is a four step process applied to the audio time series:
-# 1) Comp[ute mel spectrogram and isolate high amplitude events
+# The prediction is a three-step process applied to the audio time series:
+# 1) Compute mel spectrogram and isolate high amplitude events
 # 2] Use the pre-trained umap model to compute the umap embedding of high amplitude mel spectrogram slices
 # 3) Use the pretrained hbdscan model to assign hdbscan group labels to the umap embedding coordinates
-# 4) Use a saved mapping (from an hdbscan model) to assign cluster labels to the group labels
 # This is split into two functions so that step (1) can be in-memory (implemented here) or from a set of files
-def predict_groups_clusters_from_spectrograms(models, x, times, mS, fileids, y):
+def predict_groups_from_spectrograms(models, x, times, mS, fileids, y):
     # data is either a list of filenames or an in-memory time series and sample rate
     cl_params = models['cl_params']
     umap_model = models['umap_model']
     hdb_model = models['hdb_model']
-    cl_df = models['cl_df']
+    order_df = models['order_df']
 
-    # filter the data to capture 'loud' events
+    # (1) filter the data to capture 'loud' events
     filtered_S, times, fileids, xvals = filter_data(mS, times, fileids=fileids, xvals=x, cp=cl_params)
     # (2) compute embedding coordinates and (3) assign group labels to the data
     all_udf, grouped_S = run_models(umap_model, hdb_model, filtered_S, times,
                                     fileids=fileids, xvals=xvals)
-    # (4) assign clusters to the group-labeled data
-    ordered_S, ordered_df, cl_df = cluster_audio_groups(all_udf, grouped_S, cl_df)
-    return all_udf, grouped_S, ordered_df, ordered_S, y, cl_df
+    # (4) order the grouped data
+    ordered_S, ordered_df, order_df = order_audio_groups(all_udf, grouped_S, order_df)
+    return all_udf, grouped_S, ordered_df, ordered_S, y, order_df
 
 
-def predict_groups_clusters_from_timeseries(models, ts, fs):
+def predict_groups_from_timeseries(models, ts, fs):
     spec_params = models['spec_params']
     all_x, all_t, all_S, all_fileid, y, fs, audio_data = make_timeseries_dataset(ts, fs, spec_params)
-    all_udf, grouped_S, ordered_df, ordered_S, y, cl_df = \
-        predict_groups_clusters_from_spectrograms(models, all_x, all_t, all_S, all_fileid, y)
-    return all_udf, grouped_S, ordered_df, ordered_S, y, cl_df, audio_data, fs
+    all_udf, grouped_S, ordered_df, ordered_S, y, order_df = \
+        predict_groups_from_spectrograms(models, all_x, all_t, all_S, all_fileid, y)
+    return all_udf, grouped_S, ordered_df, ordered_S, y, order_df, audio_data, fs
 
 
-def get_timeseries_clusters(ts, fs, models_fname=None, models=None, get_labels=False):
-    # labels are the fine-scale labels assigned in the initial grouping
-    # clusters are the coarse labels from the second clustering
-    # get cluster counds in the chunk of audio
-    drop_cols = ['fileid', 'filetime', 'index', 'x', 'y']
+def get_timeseries_clusters(ts, fs, models_fname=None, models=None, details=False, prob_thr=0):
+    # get cluster of sounds in the chunk of audio
+    drop_cols = ['fileid', 'filetime', 'index', 'x', 'y', 'z', 'group', 'order']
     if models is None:
         models = joblib.load(models_fname)
-    res = predict_groups_clusters_from_timeseries(models, ts, fs)
-    rdf = res[2].drop(columns=drop_cols)
+    res = predict_groups_from_timeseries(models, ts, fs)
+    rdf = res[2]
+    drop = [col for col in drop_cols if col in rdf]
+    rdf = rdf.drop(columns=drop)
+    rdf = rdf[rdf.label_prob > prob_thr].copy()
     # get cluster count dict
-    vals = rdf['label' if get_labels else 'cluster'].value_counts().to_dict()
+    vals = rdf['label'].value_counts().to_dict()
     # make return dict with zero values for clusters not in the results
-    all_clus = res[5]['index' if get_labels else 'cluster'].unique()
-    return {f"Cluster_{clus}": vals[clus] if clus in vals else 0 for clus in all_clus}
+    all_clus = res[5]['group'].unique()
+    clusters = {f"Cluster_{clus}": vals[clus] if clus in vals else 0 for clus in all_clus}
+    return clusters, rdf if details else clusters
 
 
 def update_influx_bioacoustics_clusters(clusters, timestamp, env, version="0.1"):

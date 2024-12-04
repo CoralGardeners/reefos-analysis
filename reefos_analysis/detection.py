@@ -52,17 +52,21 @@ class Detect:
         return det
 
     # detect images in folder and create video with bounding boxes
-    def detect_images_to_video(self, images_path, output_file_str, fps=30, device='mps', conf=0.25):
+    # counts default hold frames at the start of the image for longer and then speeds up
+    def detect_images_to_video(self, images_path, output_file_str, fps=30, conf=0.25, counts=[30, 15, 8, 4, 2]):
         writer = None
         results = self.model.predict(source=images_path, exist_ok=True, name='predict',
                                      save=False, agnostic_nms=True)
         for idx, result in enumerate(results):
             print(f'Frame {idx}')
             image = result.plot(line_width=2, font_size=12)
+            cnt = counts[idx] if counts is not None and idx < len(counts) else 1
             if writer is None:
                 writer = cv2.VideoWriter(output_file_str, cv2.VideoWriter_fourcc(*'mp4v'),
                                          fps, (image.shape[1], image.shape[0]))
-            writer.write(image)
+            while cnt > 0:
+                writer.write(image)
+                cnt -= 1
         writer.release()
 
     # detect in video and create video with bounding boxes

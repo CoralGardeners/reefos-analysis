@@ -27,7 +27,7 @@ setup(
         "firebase-admin",
         "ultralytics",
         "cachetools",
-        "umap",
+        "umap-learn",
         "hdbscan",
         "librosa"
     ],
