@@ -43,12 +43,15 @@ class Detect:
             det.extend(self.unpack_detections(dets, fn, model_name, model_version))
         return det
 
-    def detect_image(self, img, img_name, model_name, model_version, line_width=2):
+    def detect_image(self, img, img_name, model_name, model_version, line_width=2, plot=False):
         results = self.model.predict(source=img, exist_ok=True, name='predict',
                                      line_width=line_width, agnostic_nms=True)
 
         detections = dio.Detections.from_ultralytics(results[0])
         det = self.unpack_detections(detections, img_name, model_name, model_version)
+        if plot:
+            image = results[0].plot(line_width=2, font_size=12)
+            return det, image
         return det
 
     # detect images in folder and create video with bounding boxes

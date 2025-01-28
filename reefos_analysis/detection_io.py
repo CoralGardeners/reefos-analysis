@@ -61,6 +61,8 @@ def det_to_points(detections, classes, image_name, model_name, model_version):
                  .field("bbox_top_left_y", d['xyxy'][1])
                  .field("bbox_bottom_right_x", d['xyxy'][2])
                  .field("bbox_bottom_right_y", d['xyxy'][3])
+                 .field("length", d['length'])
+                 .field("depth", d['depth'])
                  .time(timestamp)
                  )
         points.append(point)
